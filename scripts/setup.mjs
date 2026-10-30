@@ -113,6 +113,7 @@ async function main() {
   }
 
   console.log('\nSetup complete.\n');
+  process.exit(0);
 }
 
 main().catch((err) => {

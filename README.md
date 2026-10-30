@@ -1,80 +1,132 @@
-# Warrant
+# Warrant — your agent's leash should be a row.
 
-**Your agent's leash should be a row.**
+An AI purchasing agent normally holds its authority as a **credential** — an API
+key in its environment. Once it has that key, nobody can take it back mid-task;
+you can only hope the agent's own code checks a kill switch.
 
-Warrant gives an AI purchasing agent its authority as a row in Appwrite TablesDB
-instead of as a key in its environment. Revoking the agent means removing one
-permission string from that row, and the database rejects its very next write —
-no restart, no polling, no cooperation from the agent's own code.
+Warrant gives the agent its authority as a **row in Appwrite TablesDB** instead.
+The agent is its own Appwrite user and spends only by writing to its warrant
+row. Revoking it means removing one permission string —
+`update("user:agent_02")` — from that row's `$permissions`. Appwrite then
+rejects the agent's **very next write**. No restart, no polling, no cooperation
+from the agent's code.
 
-Built for the Appwrite Databases Hackathon (Oct 2026).
-
----
-
-## The demo
+## The result
 
 Two agents, same model, same task, two ways of holding authority.
 
-- **Credential lane** — the agent checked a vendor key once at startup. Normal.
-- **Warrant lane** — the agent spends only through its warrant row.
+- **Credential lane** — checked warrant status once at startup and cached it.
+- **Warrant lane** — every purchase hits the warrant row.
 
 One click revokes both. The credential agent keeps buying. The warrant agent is
-rejected by Appwrite on its next write.
+rejected by Appwrite on its next write (`401 user_unauthorized`).
+
+## Verify the claims yourself
+
+```bash
+cp .env.example .env   # endpoint, project id, server API key
+npm install
+npm run setup
+npm run prove
+```
+
+Measured **2026-10-30** against `https://fra.cloud.appwrite.io/v1`:
+
+```
+PASS  A  agent spends while live
+PASS  B  revoke rejects the next write, same JWT
+      removed update("user:agent_02") -> 401 user_unauthorized
+PASS  B2 nothing moved after revoke
+PASS  C  min:0 holds under 20 parallel $10 spends on a $50 warrant
+      5 committed, 15 rejected, final budgetCents 0
+PASS  D  naive read-then-write overspends
+      $200.00 spent, overspend $150.00
+PASS  E  rowId = tool-call id → 409 row_already_exists
+
+7/7 claims passed
+```
+
+Error codes to quote:
+
+| Situation | Code | Type |
+| --- | --- | --- |
+| Write after revoke | 401 | `user_unauthorized` |
+| Decrement below min | 400 | `column_limit_exceeded` |
+| Duplicate tool-call id | 409 | `row_already_exists` |
 
 ## Guarantees
 
-Every guarantee below maps to a named TablesDB primitive, not to application code.
+Every guarantee maps to a named TablesDB primitive, not to application code.
 
 | Guarantee | Primitive |
 | --- | --- |
-| Revoke takes effect on the next write | Row `$permissions`, with the agent writing as its own Appwrite user |
-| Budget can never go negative | `decrementRowColumn` with `min: 0` (race-free, [#13464](https://github.com/appwrite/appwrite/issues/13464)) |
-| A retried tool call can't charge twice | `rowId` = tool-call id, so a retry gets `row_already_exists` |
-| Nothing committed after revoke, provably | `listRows` on `actions` with `$createdAt > revokedAt` and `outcome = committed` returns 0 |
+| Revoke takes effect on the next write | Row `$permissions`, agent writing as its own user |
+| Budget can never go negative | `decrementRowColumn` with `min: 0` ([#13464](https://github.com/appwrite/appwrite/issues/13464)) |
+| A retried tool call can't charge twice | `rowId` = tool-call id → `row_already_exists` |
+| Nothing committed after revoke, provably | `listRows` on `actions` with `$createdAt > revokedAt` and `outcome = committed` (warrant lane) → **0** |
 | The grantor sees everything live | Realtime on `warrants` and `actions` |
 
-## Why this is the same rule Appwrite already shipped
+## How it works
 
-Appwrite closed this gap for human sessions in October:
-[#14039](https://github.com/appwrite/appwrite/issues/14039) /
-[#14021](https://github.com/appwrite/appwrite/issues/14021) — the HTTP API refuses
-a deleted session's next request. Warrant applies that rule to agents.
+1. The agent is a real Appwrite user (`agent_02`).
+2. A warrant is one row. Its `$permissions` include `update("user:agent_02")`.
+3. The agent spends with `decrementRowColumn` **using its own JWT**.
+4. Revoke rewrites `$permissions` without that string and sets `revokedAt`.
+5. The next decrement is rejected by the database.
 
-It also avoids an open bug rather than relying on it: Warrant never uses a
-transaction as a lock ([#14489](https://github.com/appwrite/appwrite/issues/14489)),
-and never stages transaction operations in parallel with a commit
-([#14332](https://github.com/appwrite/appwrite/issues/14332)). Parallel tool calls go
-straight to `decrementRowColumn`.
+Every purchase is a **three-phase write** (Warrant never uses a transaction as a
+lock — [#14489](https://github.com/appwrite/appwrite/issues/14489)):
 
-## Schema
+1. Insert `actions` row with `rowId = toolCallId`, `outcome: "pending"`
+2. Decrement `budgetCents` (and `actionsLeft`) with `min: 0`
+3. Mark `committed` or `rejected`
 
-| Table | Key columns | Permissions |
-| --- | --- | --- |
-| `warrants` | `budgetCents` (min 0), `actionsLeft` (min 0), `vendors`, `expiresAt`, `status`, `revokedAt` | rowSecurity on; row grants `update` to grantor and agent until revoked |
-| `actions` | `warrantId`, `lane`, `tool`, `amountCents`, `outcome`, `error` | rowId = tool-call id |
-| `vendors` | `name`, `catalog`, `injected` | read any; one seeded row carries the injection |
+The proof query counts only `committed`.
 
-## Running it
+## Issue citations
 
-```bash
-cp .env.example .env    # fill in endpoint, project id, server API key
-npm install
-npm run setup           # database, three tables, seeded vendors, demo users
-npm run spike           # proves the five claims above against live Appwrite
-```
+- [#14039](https://github.com/appwrite/appwrite/issues/14039) /
+  [#14021](https://github.com/appwrite/appwrite/issues/14021) — Appwrite closed
+  this gap for **human sessions** in October. Warrant is the same rule for agents.
+- [#14489](https://github.com/appwrite/appwrite/issues/14489) /
+  [#14332](https://github.com/appwrite/appwrite/issues/14332) — bugs Warrant
+  **avoids**, never relies on.
 
-## Tech stack
-
-- **Appwrite TablesDB** — rowSecurity, `decrementRowColumn`, row `$permissions`
-- **Appwrite Functions** (Node 22) — grant/revoke and the agent runner
-- **Appwrite Realtime** — the live race dashboard
-- **Appwrite Sites** — frontend hosting
-- `node-appwrite` 31.x — the only runtime dependency of the backend
-
-## Open-source libraries
+## Tech stack + open-source libraries
 
 | Library | Licence | Used for |
 | --- | --- | --- |
-| [node-appwrite](https://github.com/appwrite/sdk-for-node) | BSD-3-Clause | Appwrite server SDK |
+| [node-appwrite](https://github.com/appwrite/sdk-for-node) 31.x | BSD-3-Clause | Server SDK (TablesDB, Users) |
+| [appwrite](https://github.com/appwrite/sdk-for-web) 29.x | BSD-3-Clause | Browser SDK (TablesDB, Realtime) |
+| [react](https://github.com/facebook/react) 19 | MIT | Dashboard UI |
+| [vite](https://github.com/vitejs/vite) | MIT | Frontend build |
 
-_(frontend libraries are listed here as they land)_
+Also: Appwrite TablesDB, Appwrite Realtime, optional Appwrite Functions / Sites.
+
+## Run the demo
+
+```bash
+# terminal 1 — grant / revoke / startRace
+npm run control
+
+# terminal 2 — dashboard (Realtime)
+npm run web
+# open http://127.0.0.1:5173
+
+# or CLI race with mid-run revoke
+SCRIPTED=1 npm run race -- --revoke-after=8
+```
+
+Server API key scopes: `databases`, `tables`, `rows`, `users` (read + write).
+Endpoint must match your Cloud region (this project: `fra.cloud.appwrite.io`).
+
+## Limitations
+
+- After revoke the agent can still **read**; the leash is `update`.
+- The credential lane caches its authority check — that is what credentials do.
+- Revocation is per-row, not a global kill switch.
+- Jar / naive numbers come from `handoff/MEASURED.md`, dated 2026-10-30.
+- Scripted mode fixes the stage for recording and is **labelled on screen**.
+  Never claim the model was fooled by the seeded injection unless it was.
+
+Built for the Appwrite Databases Hackathon (Oct 2026).

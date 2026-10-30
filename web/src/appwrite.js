@@ -1,0 +1,58 @@
+import { Client, TablesDB, Realtime, Channel, Query } from 'appwrite';
+
+const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT;
+const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID;
+export const CONTROL_URL = import.meta.env.VITE_CONTROL_URL || 'http://127.0.0.1:8787';
+export const DB_ID = 'warrant';
+export const TABLES = { warrants: 'warrants', actions: 'actions', vendors: 'vendors' };
+
+const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID);
+export const tables = new TablesDB(client);
+export const realtime = new Realtime(client);
+
+export { Query, Channel };
+
+export async function control(action, body = {}) {
+  const res = await fetch(CONTROL_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...body }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || data?.error || res.statusText);
+  return data;
+}
+
+export async function getWarrant(warrantId) {
+  return tables.getRow({ databaseId: DB_ID, tableId: TABLES.warrants, rowId: warrantId });
+}
+
+export async function listActions(warrantId) {
+  return tables.listRows({
+    databaseId: DB_ID,
+    tableId: TABLES.actions,
+    queries: [Query.equal('warrantId', warrantId), Query.orderAsc('$createdAt'), Query.limit(200)],
+  });
+}
+
+export async function proofAfterRevoke(warrantId, revokedAt) {
+  return tables.listRows({
+    databaseId: DB_ID,
+    tableId: TABLES.actions,
+    queries: [
+      Query.equal('warrantId', warrantId),
+      Query.equal('outcome', 'committed'),
+      Query.equal('lane', 'warrant'),
+      Query.greaterThan('$createdAt', revokedAt),
+    ],
+  });
+}
+
+/** Subscribe to actions + warrants rows for a live race. */
+export async function subscribeRace(onEvent) {
+  const channels = [
+    Channel.tablesdb(DB_ID).table(TABLES.actions).row(),
+    Channel.tablesdb(DB_ID).table(TABLES.warrants).row(),
+  ];
+  return realtime.subscribe(channels, onEvent);
+}
