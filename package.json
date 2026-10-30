@@ -5,6 +5,7 @@
   "scripts": {
     "setup": "node --env-file=.env scripts/setup.mjs",
     "spike": "node --env-file=.env scripts/spike.mjs",
+    "prove": "node --env-file=.env scripts/spike.mjs",
     "teardown": "node --env-file=.env scripts/teardown.mjs"
   },
   "type": "module",

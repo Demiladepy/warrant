@@ -1,0 +1,33 @@
+---
+description: Warrant — Appwrite Databases Hackathon. Read the handoff folder before writing code.
+alwaysApply: true
+---
+
+Read `AGENTS.md` and `handoff/00-START-HERE.md` before your first edit in this
+repo. `handoff/` holds the plan, spec, verified API surface, build order,
+competitive analysis and submission requirements.
+
+Deadline: **Sat 31 Oct 2026, 23:59 Lagos.** Hard stop Sun 1 Nov 07:59.
+
+Non-negotiable:
+
+- This project uses Appwrite **TablesDB** (tables / rows / columns), not the
+  older Databases API (collections / documents / attributes). Every SDK method
+  takes a single object argument. `node-appwrite@31.1.0`.
+- Never guess an SDK signature — read it from
+  `node_modules/node-appwrite/dist/services/*.d.ts`. Row methods are generic, so
+  grep `createRow<`, not `createRow(`. Recipe in `handoff/02-APPWRITE-API.md`.
+- Never use an Appwrite transaction as a lock (upstream issue #14489). Parallel
+  spends go to `decrementRowColumn` with `min: 0`.
+- A purchase is a three-phase write: insert the `actions` row with
+  `rowId = toolCallId` and `outcome: "pending"`, decrement the warrant, then mark
+  `committed` or `rejected`. The proof query counts only `committed`.
+- Permission strings come from `livePermissions` / `revokedPermissions` in
+  `src/schema.mjs`. Never inline them. The difference between those two arrays is
+  the product.
+- Every number that reaches the README, the UI or the video must come from
+  `handoff/MEASURED.md`, filled in by running `npm run prove`. Invent nothing.
+- Never claim the model was fooled by the seeded prompt injection unless it was
+  on that take. Scripted mode must be labelled on screen.
+- The race screen and the receipt screen are never cut. Cut order is in
+  `handoff/06-RISKS.md`.
