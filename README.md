@@ -1,6 +1,7 @@
 # Warrant — your agent's leash should be a row.
 
-**Repo:** https://github.com/Demiladepy/warrant
+**Repo:** https://github.com/Demiladepy/warrant  
+**Live:** Appwrite Sites `warrant` + Function `warrant-control` (attach domain in console — see `handoff/CONSOLE-FINISH.md`)
 
 An AI purchasing agent normally holds its authority as a **credential** — an API
 key in its environment. Once it has that key, nobody can take it back mid-task;
@@ -127,11 +128,27 @@ Endpoint must match your Cloud region (this project: `fra.cloud.appwrite.io`).
 
 ### Deploy notes
 
-- **Dashboard:** `cd web && npm run build` — deploy `web/dist` to Appwrite Sites.
-  Set `VITE_APPWRITE_ENDPOINT`, `VITE_APPWRITE_PROJECT_ID`. For a public control
-  plane, deploy `functions/warrant-control` and set `VITE_CONTROL_FUNCTION_ID`.
-  Recording / local demo uses `npm run control` (see `handoff/06-RISKS.md`).
-- **Video shot list:** `handoff/VIDEO-SHOT-LIST.md`
+Already on this Appwrite project:
+
+| Resource | ID | Status |
+| --- | --- | --- |
+| Function | `warrant-control` | deployed, `execute: any`, scopes for TablesDB + Users |
+| Site | `warrant` | built + activated (Vite static) |
+
+Attach the Sites domain + web platforms in the console (`handoff/CONSOLE-FINISH.md`)
+— the API key used by CLI lacked `rules.*` / `platforms.*`.
+
+Local recording still works with `npm run control` + `npm run web`.
+Video shot list: `handoff/VIDEO-SHOT-LIST.md`.
+
+### Why this beats a library demo
+
+Doubletap answers *"how do I stop a duplicate charge?"* — a known idempotency
+pattern. Warrant answers *"how do I take authority back from an agent that is
+already running?"* Five guarantees map to five TablesDB primitives
+(`$permissions`, `decrementRowColumn(min:0)`, rowId collision, proof `listRows`,
+Realtime) — not one trick. The race has a story; the jar is measured; `npm run
+prove` is falsifiable.
 
 ## Limitations
 

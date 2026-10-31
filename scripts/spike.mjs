@@ -225,9 +225,13 @@ async function main() {
     console.log('update(team:...), revoke deletes the membership.\n');
     process.exit(2);
   }
+
+  const failed = findings.some((f) => !f.passed);
+  process.exit(failed ? 1 : 0);
 }
 
 main().catch((err) => {
   console.error('\nSpike crashed:', describeError(err));
   process.exit(1);
 });
+
