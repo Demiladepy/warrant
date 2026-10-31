@@ -18,7 +18,7 @@ function arg(name, fallback) {
 }
 
 function stamp(lane, entry) {
-  const outcome = entry.result?.outcome ?? '?';
+  const outcome = entry.result?.outcome ?? (entry.name === 'read_catalog' ? 'ok' : '?');
   const err = entry.result?.error
     ? ` ${entry.result.error.code ?? ''} ${entry.result.error.type ?? entry.result.error.message ?? ''}`.trim()
     : '';

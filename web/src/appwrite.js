@@ -1,22 +1,47 @@
-import { Client, TablesDB, Realtime, Channel, Query } from 'appwrite';
+import { Client, TablesDB, Realtime, Functions, Channel, Query, ExecutionMethod } from 'appwrite';
 
 const ENDPOINT = import.meta.env.VITE_APPWRITE_ENDPOINT;
 const PROJECT_ID = import.meta.env.VITE_APPWRITE_PROJECT_ID;
 export const CONTROL_URL = import.meta.env.VITE_CONTROL_URL || 'http://127.0.0.1:8787';
+export const CONTROL_FUNCTION_ID = import.meta.env.VITE_CONTROL_FUNCTION_ID || '';
 export const DB_ID = 'warrant';
 export const TABLES = { warrants: 'warrants', actions: 'actions', vendors: 'vendors' };
 
 const client = new Client().setEndpoint(ENDPOINT).setProject(PROJECT_ID);
 export const tables = new TablesDB(client);
 export const realtime = new Realtime(client);
+const functions = new Functions(client);
 
 export { Query, Channel };
 
 export async function control(action, body = {}) {
+  const payload = { action, ...body };
+
+  // Prefer Appwrite Function when configured (Sites / public demo).
+  if (CONTROL_FUNCTION_ID) {
+    const execution = await functions.createExecution({
+      functionId: CONTROL_FUNCTION_ID,
+      body: JSON.stringify(payload),
+      method: ExecutionMethod.POST,
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const raw = execution.responseBody || '{}';
+    let data;
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      throw new Error(raw.slice(0, 200) || 'Function returned non-JSON');
+    }
+    if (execution.statusCode >= 400 || data?.error) {
+      throw new Error(data?.error?.message || data?.error || `Function ${execution.statusCode}`);
+    }
+    return data;
+  }
+
   const res = await fetch(CONTROL_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action, ...body }),
+    body: JSON.stringify(payload),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data?.error?.message || data?.error || res.statusText);

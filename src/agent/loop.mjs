@@ -37,8 +37,8 @@ export async function runLoop({
     if (step.done) break;
     stepIndex = step.nextIndex ?? stepIndex + 1;
 
-    // Unique per warrant + lane so reruns don't collide on scripted ids.
-    const toolCallId = `${warrantId}_${lane}_${step.toolCallId}`;
+    // Appwrite rowId ≤ 36 chars. Lane letter + step + warrantId stays unique and short.
+    const toolCallId = `${lane[0]}${stepIndex}_${warrantId}`;
 
     let result;
     if (step.name === 'read_catalog') {

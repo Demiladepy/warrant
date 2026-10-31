@@ -1,5 +1,7 @@
 # Warrant — your agent's leash should be a row.
 
+**Repo:** https://github.com/Demiladepy/warrant
+
 An AI purchasing agent normally holds its authority as a **credential** — an API
 key in its environment. Once it has that key, nobody can take it back mid-task;
 you can only hope the agent's own code checks a kill switch.
@@ -20,6 +22,9 @@ Two agents, same model, same task, two ways of holding authority.
 
 One click revokes both. The credential agent keeps buying. The warrant agent is
 rejected by Appwrite on its next write (`401 user_unauthorized`).
+
+On three consecutive scripted races (2026-10-31): warrant **1 committed / 7
+rejected** after mid-run revoke; credential **8 committed / 0 rejected**.
 
 ## Verify the claims yourself
 
@@ -111,14 +116,22 @@ npm run control
 
 # terminal 2 — dashboard (Realtime)
 npm run web
-# open http://127.0.0.1:5173
+# open http://127.0.0.1:5173  →  Run demo
 
 # or CLI race with mid-run revoke
-SCRIPTED=1 npm run race -- --revoke-after=8
+SCRIPTED=1 npm run race -- --revoke-after=2
 ```
 
 Server API key scopes: `databases`, `tables`, `rows`, `users` (read + write).
 Endpoint must match your Cloud region (this project: `fra.cloud.appwrite.io`).
+
+### Deploy notes
+
+- **Dashboard:** `cd web && npm run build` — deploy `web/dist` to Appwrite Sites.
+  Set `VITE_APPWRITE_ENDPOINT`, `VITE_APPWRITE_PROJECT_ID`. For a public control
+  plane, deploy `functions/warrant-control` and set `VITE_CONTROL_FUNCTION_ID`.
+  Recording / local demo uses `npm run control` (see `handoff/06-RISKS.md`).
+- **Video shot list:** `handoff/VIDEO-SHOT-LIST.md`
 
 ## Limitations
 

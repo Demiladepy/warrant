@@ -38,6 +38,12 @@ Paste the raw `npm run prove` output below, with the date. Do this for every run
 you quote — three runs is better than one, and the rival submission publishes
 per-run figures.
 
+### Clean race runs (Block 5) — 2026-10-31
+
+Three consecutive `SCRIPTED=1 npm run race -- --revoke-after=2` — all OK.
+Each: warrant committed=1 rejected=7; credential committed=8 rejected=0;
+revoked mid-run with `401 user_unauthorized` on warrant lane.
+
 ```
 2026-10-30 — npm run prove (attempt 4 after transient 503s; endpoint fra.cloud.appwrite.io)
 
