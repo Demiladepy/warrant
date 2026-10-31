@@ -103,6 +103,20 @@ code {
   font-size: 0.95rem;
 }
 
+.lede.tight {
+  margin: 0.55rem 0 0.85rem;
+  font-size: 0.88rem;
+}
+
+.tagline .mode-tag {
+  margin-left: 0.65rem;
+  vertical-align: middle;
+}
+
+.scoreboard {
+  margin-top: 0.35rem;
+}
+
 .race-top {
   display: flex;
   flex-wrap: wrap;

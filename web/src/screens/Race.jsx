@@ -138,7 +138,10 @@ export default function Race({ warrantId, onWarrantId, onGoto }) {
       <header className="race-top">
         <div className="race-identity">
           <p className="brand">Warrant</p>
-          <p className="tagline">Your agent&apos;s leash should be a row.</p>
+          <p className="tagline">
+            Your agent&apos;s leash should be a row.
+            <span className="mode-tag">scripted</span>
+          </p>
         </div>
         <div className="race-controls">
           <button type="button" className="btn primary" disabled={busy} onClick={start}>
@@ -155,13 +158,9 @@ export default function Race({ warrantId, onWarrantId, onGoto }) {
         </div>
       </header>
 
-      <p className="lede">
-        Same task. Credential lane caches authority once. Warrant lane asks the row every time.
-        <span className="mode-tag">scripted</span>
-      </p>
-
       {error && <p className="banner error">{error}</p>}
 
+      {/* Scoreboard first — the 4-vs-0 pitch must be above the fold. */}
       <div className={`scoreboard ${revokedAt ? 'live' : ''}`}>
         <div className="score credential">
           <span className="score-label">Credential after revoke</span>
@@ -175,6 +174,10 @@ export default function Race({ warrantId, onWarrantId, onGoto }) {
           <span className="score-hint">database rejects</span>
         </div>
       </div>
+
+      <p className="lede tight">
+        Same task. Credential caches authority once. Warrant asks the row every write.
+      </p>
 
       {warrant && (
         <div className="warrant-strip">
