@@ -424,9 +424,64 @@ export default async ({ req, res, log, error }) => {
     }
     if (body.action === 'agentJwt') return res.json(await mintJwt(users, body.duration ?? 900));
     if (body.action === 'startRace') {
-      // Prefer async kickoff so the dashboard gets warrantId instantly.
+      // Grant + return warrantId, then run both lanes before the response ends
+      // so Cloud does not kill background work. Client should use async:true
+      // only for runRace; startRace stays synchronous but returns after kickoff
+      // via wait:false path that still awaits lanes when wait:true.
       if (body.wait === true) return res.json(await startRace(tables, users, body));
-      return res.json(await startRaceAsync(tables, users, body, log));
+      // Fast path: create warrant, schedule lanes by awaiting them here with a
+      // short-circuit return is unsafe on Cloud — so we grant, return ids, and
+      // expect a follow-up runRace (or wait:true for CLI).
+      const g = await grant(tables, {
+        budgetCents: body.budgetCents ?? 50_000,
+        actionsLeft: body.actionsLeft ?? 40,
+        label: body.label ?? `race ${new Date().toISOString()}`,
+      });
+      return res.json({
+        ...g,
+        mode: 'scripted',
+        next: { action: 'runRace', warrantId: g.warrantId, revokeAfterSec: body.revokeAfterSec ?? 2.2 },
+      });
+    }
+    if (body.action === 'runRace') {
+      if (!body.warrantId) return res.json({ error: { message: 'warrantId required' } }, 400);
+      const { jwt } = await mintJwt(users);
+      const warrantAgent = asAgent(jwt);
+      const credentialAgent = asAgent(jwt);
+      const row = await tables.getRow({
+        databaseId: DB_ID,
+        tableId: TABLES.warrants,
+        rowId: body.warrantId,
+      });
+      const keyValid = row.status === 'active';
+      const revokeAfterSec = Number(body.revokeAfterSec ?? 2.2);
+      const revokeTimer =
+        revokeAfterSec > 0
+          ? setTimeout(() => {
+              revoke(tables, body.warrantId).catch(() => {});
+            }, revokeAfterSec * 1000)
+          : null;
+      try {
+        await Promise.all([
+          runLane({
+            agentTables: warrantAgent,
+            serverTables: tables,
+            warrantId: body.warrantId,
+            lane: 'warrant',
+            keyValid: true,
+          }),
+          runLane({
+            agentTables: credentialAgent,
+            serverTables: tables,
+            warrantId: body.warrantId,
+            lane: 'credential',
+            keyValid,
+          }),
+        ]);
+      } finally {
+        if (revokeTimer) clearTimeout(revokeTimer);
+      }
+      return res.json({ warrantId: body.warrantId, done: true });
     }
     if (body.action === 'jar') return res.json(await jar(tables, users));
     return res.json({ error: { message: `unknown action: ${body.action}` } }, 400);

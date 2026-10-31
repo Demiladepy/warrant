@@ -1,6 +1,6 @@
 /**
  * Local warrant-control HTTP server.
- * Actions: grant | revoke | agentJwt | startRace
+ * Actions: grant | revoke | agentJwt | startRace | runRace | jar | status
  *
  *   npm run control
  */
@@ -36,39 +36,79 @@ async function handle(body) {
 
   if (action === 'startRace') {
     process.env.SCRIPTED = '1';
+    const revokeAfterSec = Number(body.revokeAfterSec ?? 2.2);
     const { warrantId } = await grant({
       budgetCents: body.budgetCents ?? 50_000,
       actionsLeft: body.actionsLeft ?? 40,
       label: body.label ?? `race ${new Date().toISOString()}`,
     });
-    const { jwt } = await mintAgentJwt();
-    // Default auto-revoke so the demo climax is not a long wait.
+    // Auto-kick lanes locally so one-button demo still works without a second call.
+    setImmediate(() => {
+      handle({ action: 'runRace', warrantId, revokeAfterSec }).catch((err) =>
+        console.error('race failed', describeError(err)),
+      );
+    });
+    return {
+      warrantId,
+      mode: 'scripted',
+      next: { action: 'runRace', warrantId, revokeAfterSec },
+    };
+  }
+
+  if (action === 'runRace') {
+    process.env.SCRIPTED = '1';
+    const warrantId = body.warrantId;
+    if (!warrantId) throw Object.assign(new Error('warrantId required'), { code: 400 });
     const revokeAfterSec = Number(body.revokeAfterSec ?? 2.2);
-
-    const running = (async () => {
-      const warrantAgent = asAgent(jwt);
-      const credentialAgent = asAgent(jwt);
-      let revokeTimer;
-      if (revokeAfterSec > 0) {
-        revokeTimer = setTimeout(() => {
-          revoke(warrantId).catch((err) => console.error('auto-revoke', describeError(err)));
-        }, revokeAfterSec * 1000);
-      }
-      try {
-        await Promise.all([
-          warrantLane({ agent: warrantAgent, warrantId }),
-          credentialLane({ agent: credentialAgent, warrantId }),
-        ]);
-      } finally {
-        if (revokeTimer) clearTimeout(revokeTimer);
-        races.delete(warrantId);
-      }
-    })();
-
+    const { jwt } = await mintAgentJwt();
     races.set(warrantId, { startedAt: Date.now() });
-    // Don't await — return immediately so the UI can subscribe.
-    running.catch((err) => console.error('race failed', describeError(err)));
-    return { warrantId, mode: 'scripted' };
+    const warrantAgent = asAgent(jwt);
+    const credentialAgent = asAgent(jwt);
+    let revokeTimer;
+    if (revokeAfterSec > 0) {
+      revokeTimer = setTimeout(() => {
+        revoke(warrantId).catch((err) => console.error('auto-revoke', describeError(err)));
+      }, revokeAfterSec * 1000);
+    }
+    try {
+      await Promise.all([
+        warrantLane({ agent: warrantAgent, warrantId }),
+        credentialLane({ agent: credentialAgent, warrantId }),
+      ]);
+    } finally {
+      if (revokeTimer) clearTimeout(revokeTimer);
+      races.delete(warrantId);
+    }
+    return { warrantId, done: true };
+  }
+
+  if (action === 'jar') {
+    process.env.SCRIPTED = '1';
+    const { warrantId } = await grant({ budgetCents: 5_000, actionsLeft: 50, label: 'jar' });
+    const { jwt } = await mintAgentJwt();
+    const agent = asAgent(jwt);
+    const { DB_ID, TABLES } = await import('../src/config.mjs');
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, () =>
+        agent.tables.decrementRowColumn({
+          databaseId: DB_ID,
+          tableId: TABLES.warrants,
+          rowId: warrantId,
+          column: 'budgetCents',
+          value: 1_000,
+          min: 0,
+        }),
+      ),
+    );
+    const committed = results.filter((r) => r.status === 'fulfilled').length;
+    const rejected = results.length - committed;
+    const { asServer } = await import('../src/appwrite.mjs');
+    const row = await asServer().tables.getRow({
+      databaseId: DB_ID,
+      tableId: TABLES.warrants,
+      rowId: warrantId,
+    });
+    return { warrantId, committed, rejected, budgetCents: row.budgetCents };
   }
 
   if (action === 'status') {
@@ -118,5 +158,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`warrant-control on http://127.0.0.1:${PORT}`);
-  console.log('actions: grant | revoke | agentJwt | startRace | status');
+  console.log('actions: grant | revoke | agentJwt | startRace | runRace | jar | status');
 });

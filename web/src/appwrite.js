@@ -14,7 +14,7 @@ const functions = new Functions(client);
 
 export { Query, Channel };
 
-export async function control(action, body = {}) {
+export async function control(action, body = {}, { background = false } = {}) {
   const payload = { action, ...body };
 
   // Prefer Appwrite Function when configured (Sites / public demo).
@@ -24,7 +24,9 @@ export async function control(action, body = {}) {
       body: JSON.stringify(payload),
       method: ExecutionMethod.POST,
       headers: { 'Content-Type': 'application/json' },
+      async: background,
     });
+    if (background) return { queued: true, executionId: execution.$id };
     const raw = execution.responseBody || '{}';
     let data;
     try {
@@ -32,8 +34,9 @@ export async function control(action, body = {}) {
     } catch {
       throw new Error(raw.slice(0, 200) || 'Function returned non-JSON');
     }
-    if (execution.statusCode >= 400 || data?.error) {
-      throw new Error(data?.error?.message || data?.error || `Function ${execution.statusCode}`);
+    const code = execution.statusCode ?? execution.responseStatusCode ?? 200;
+    if (code >= 400 || data?.error) {
+      throw new Error(data?.error?.message || data?.error || `Function ${code}`);
     }
     return data;
   }

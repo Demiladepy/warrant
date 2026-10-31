@@ -1,7 +1,8 @@
 # Warrant — your agent's leash should be a row.
 
 **Repo:** https://github.com/Demiladepy/warrant  
-**Live:** Appwrite Sites `warrant` + Function `warrant-control` (attach domain in console — see `handoff/CONSOLE-FINISH.md`)
+**Live:** https://warrant-lab.appwrite.network  
+**Control:** Appwrite Function `warrant-control` (execute: any)
 
 An AI purchasing agent normally holds its authority as a **credential** — an API
 key in its environment. Once it has that key, nobody can take it back mid-task;

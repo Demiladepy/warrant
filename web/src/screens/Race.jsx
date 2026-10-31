@@ -85,14 +85,23 @@ export default function Race({ warrantId, onWarrantId, onGoto }) {
     setSelected(null);
     setRunning(true);
     try {
-      // Auto-revoke mid-stream so the 4-vs-0 beat happens without waiting.
-      const { warrantId: id } = await control('startRace', {
+      // 1) Grant + warrantId immediately  2) runRace in background so Realtime can attach.
+      const started = await control('startRace', {
         budgetCents: 50_000,
         label: 'dashboard race',
         revokeAfterSec: 2.2,
       });
+      const id = started.warrantId;
       onWarrantId(id);
       await refresh(id);
+      control(
+        'runRace',
+        {
+          warrantId: id,
+          revokeAfterSec: started.next?.revokeAfterSec ?? 2.2,
+        },
+        { background: true },
+      ).catch((e) => setError(e.message));
     } catch (e) {
       setError(e.message);
       setRunning(false);
