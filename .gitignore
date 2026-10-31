@@ -5,3 +5,5 @@ web/.env
 dist/
 web/dist/
 *.local
+
+tmp-body.json
