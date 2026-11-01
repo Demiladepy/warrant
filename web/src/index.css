@@ -1,5 +1,4 @@
-html,
-body,
-#root {
-  min-height: 100%;
+/* base reset lives in App.css tokens */
+html {
+  -webkit-text-size-adjust: 100%;
 }
