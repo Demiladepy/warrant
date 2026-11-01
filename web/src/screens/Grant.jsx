@@ -19,7 +19,7 @@ export default function Grant({ warrantId, onGoto }) {
     return (
       <section className="grant">
         <p className="brand">Warrant</p>
-        <p className="lede">Start a race to mint a warrant row.</p>
+        <p className="lede">It doesn&apos;t get a key. It gets a row — start a race to mint the slip.</p>
         <button type="button" className="btn primary" onClick={() => onGoto('race')}>
           Go to race
         </button>
@@ -39,14 +39,16 @@ export default function Grant({ warrantId, onGoto }) {
       <header className="race-head">
         <div>
           <p className="brand">Warrant</p>
-          <p className="lede">It doesn&apos;t get a key. It gets a row.</p>
+          <p className="lede">The grant is a permission slip — serial, limits, stamp.</p>
         </div>
         <button type="button" className="btn ghost" onClick={() => onGoto('race')}>
           Race
         </button>
       </header>
-      <div className="slip">
-        <h1>{warrant.label}</h1>
+      <div className={`slip ${warrant.status === 'revoked' ? 'revoked' : ''}`}>
+        <div className="slip-stamp">{warrant.status === 'revoked' ? 'REVOKED' : 'ACTIVE'}</div>
+        <p className="slip-title">{warrant.label}</p>
+        <p className="slip-serial">serial · {warrantId}</p>
         <p className="slip-budget">
           ${(warrant.budgetCents / 100).toFixed(2)}
           <span> / ${(warrant.budgetStartCents / 100).toFixed(2)}</span>
@@ -54,10 +56,9 @@ export default function Grant({ warrantId, onGoto }) {
         <div className="meter">
           <div style={{ width: `${Math.max(0, Math.min(100, pct))}%` }} />
         </div>
-        <ul>
+        <ul className="slip-meta">
           <li>actions left {warrant.actionsLeft}</li>
           <li>vendors {(warrant.vendors || []).join(', ')}</li>
-          <li>status {warrant.status}</li>
           <li>expires {warrant.expiresAt}</li>
         </ul>
       </div>

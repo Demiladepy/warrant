@@ -42,13 +42,15 @@ export default function Receipt({ warrantId, onGoto }) {
     })();
   }, [warrantId]);
 
+  const total = proof?.total === null || proof?.total === undefined ? '—' : proof.total;
+
   return (
     <section className="receipt">
       <header className="race-head">
         <div>
           <p className="brand">Warrant</p>
           <h1>Receipt</h1>
-          <p className="lede">0 actions committed after revocation — fetched, not hard-coded.</p>
+          <p className="lede">Fetched from TablesDB — not hard-coded.</p>
         </div>
         <div className="race-actions">
           <button type="button" className="btn ghost" onClick={() => onGoto('race')}>
@@ -58,10 +60,34 @@ export default function Receipt({ warrantId, onGoto }) {
       </header>
 
       {error && <p className="banner error">{error}</p>}
-      {!warrantId && <p className="banner">Run a race first.</p>}
+      {!warrantId && (
+        <div className="empty-race">
+          <p>
+            Run a race and revoke first. Then this page shows the live proof query.
+          </p>
+          <button type="button" className="btn primary" onClick={() => onGoto('race')}>
+            Go to race
+          </button>
+        </div>
+      )}
 
       {warrant && (
         <>
+          <div className="proof-hero">
+            <p className="proof-total-huge">
+              {total}
+              <span>actions committed after revocation (warrant lane)</span>
+            </p>
+            {credAfter !== null && (
+              <p className="meta">
+                credential lane after revoke: <strong className="climb" style={{ color: '#f08a6a' }}>{credAfter}</strong>
+                {' · '}
+                warrant lane: <strong className="zero">{total}</strong>
+              </p>
+            )}
+            {proof?.note && <p className="meta">{proof.note}</p>}
+          </div>
+
           <div className="proof-pair">
             <pre className="query">{`tablesDB.listRows({
   databaseId: 'warrant',
@@ -74,17 +100,10 @@ export default function Receipt({ warrantId, onGoto }) {
   ],
 });`}</pre>
             <div className="proof-result">
-              <p className="proof-total">
-                total:{' '}
-                <strong>{proof?.total === null || proof?.total === undefined ? '—' : proof.total}</strong>
+              <p className="meta">Live proof query → total</p>
+              <p className="proof-total-huge" style={{ fontSize: '3rem' }}>
+                {total}
               </p>
-              {proof?.note && <p className="meta">{proof.note}</p>}
-              {credAfter !== null && (
-                <p className="meta">
-                  credential lane after revoke: <strong>{credAfter}</strong> · warrant lane:{' '}
-                  <strong className="zero">0</strong>
-                </p>
-              )}
             </div>
           </div>
 
