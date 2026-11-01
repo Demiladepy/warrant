@@ -1,9 +1,9 @@
 # DESIGN — Warrant visual direction
 
-Refero MCP unavailable (subscription expired). Patterns drawn from craft knowledge of fintech/security product UIs (spend controls, key revoke, activity timelines, confirmation receipts).
+**Look:** Heptabase-like sunlit research desk — eggshell canvas, charcoal pill actions, Instrument Sans display + Inter UI. Not a dark terminal.
 
-1. **Ramp / Brex spend controls** — Budget as a live-draining gauge + hard limit object; status stamp (ACTIVE/REVOKED) is the authority signal, not a form field.
-2. **Stripe / GitHub API keys** — Destructive revoke is one primary danger action; removed permission string is shown struck-through in mono, so the effect is readable without voiceover.
-3. **Linear activity / audit timeline** — Two parallel feeds with a full-width REVOKED bar; later “leaked” rows highlight in the leak colour; rejected rows stamp the real Appwrite error.
+1. **Desk surfaces** — Eggshell `#fdfcfb` page, paper/whiteboard panels for the race and slip; flat cards (12px), no heavy shadows except floating slip/preview.
+2. **Authority contrast** — Dark green enforced (warrant) vs lighter warm leaked (credential); Research Blue `#207dff` only for links and active step labels.
+3. **Flow** — Grant → Watch → Revoke as three paper steps; charcoal primary CTA; revoke is graphite with a warm inset edge, not neon.
 
-**Look:** Dark ink ground, light paper slip for the warrant artefact; teal = warrant/enforced, warm coral = credential/leaked — distinguished by lightness, not hue alone; Instrument Serif + JetBrains Mono; 8px grid.
+Do not copy Heptabase branding; tokens adapted for Warrant’s race thesis.
