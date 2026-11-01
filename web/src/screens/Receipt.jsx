@@ -13,6 +13,7 @@ export default function Receipt({ warrantId, onGoto }) {
   const [warrant, setWarrant] = useState(null);
   const [proof, setProof] = useState(null);
   const [credAfter, setCredAfter] = useState(null);
+  const [warrantPurchasesAfter, setWarrantPurchasesAfter] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -28,21 +29,28 @@ export default function Receipt({ warrantId, onGoto }) {
         const p = await proofAfterRevoke(warrantId, w.revokedAt);
         setProof(p);
         const all = await listActions(warrantId);
-        const n = (all.rows ?? []).filter(
-          (a) =>
-            a.lane === 'credential' &&
-            a.tool === 'purchase' &&
-            a.outcome === 'committed' &&
-            a.$createdAt > w.revokedAt,
-        ).length;
-        setCredAfter(n);
+        const rows = all.rows ?? [];
+        const afterPurchase = (lane) =>
+          rows.filter(
+            (a) =>
+              a.lane === lane &&
+              a.tool === 'purchase' &&
+              a.outcome === 'committed' &&
+              a.$createdAt > w.revokedAt,
+          ).length;
+        setCredAfter(afterPurchase('credential'));
+        setWarrantPurchasesAfter(afterPurchase('warrant'));
       } catch (e) {
         setError(e.message);
       }
     })();
   }, [warrantId]);
 
-  const total = proof?.total === null || proof?.total === undefined ? '—' : proof.total;
+  const hero =
+    warrantPurchasesAfter === null || warrantPurchasesAfter === undefined
+      ? '—'
+      : warrantPurchasesAfter;
+  const proofTotal = proof?.total === null || proof?.total === undefined ? '—' : proof.total;
 
   return (
     <section className="receipt">
@@ -75,14 +83,15 @@ export default function Receipt({ warrantId, onGoto }) {
         <>
           <div className="proof-hero">
             <p className="proof-total-huge">
-              {total}
-              <span>actions committed after revocation (warrant lane)</span>
+              {hero}
+              <span>purchases committed after revocation (warrant lane)</span>
             </p>
             {credAfter !== null && (
               <p className="meta">
-                credential lane after revoke: <strong className="climb" style={{ color: '#f08a6a' }}>{credAfter}</strong>
+                credential purchases after revoke:{' '}
+                <strong style={{ color: '#f08a6a' }}>{credAfter}</strong>
                 {' · '}
-                warrant lane: <strong className="zero">{total}</strong>
+                warrant purchases: <strong className="zero">{hero}</strong>
               </p>
             )}
             {proof?.note && <p className="meta">{proof.note}</p>}
@@ -100,9 +109,9 @@ export default function Receipt({ warrantId, onGoto }) {
   ],
 });`}</pre>
             <div className="proof-result">
-              <p className="meta">Live proof query → total</p>
+              <p className="meta">Live proof query → total (all tools)</p>
               <p className="proof-total-huge" style={{ fontSize: '3rem' }}>
-                {total}
+                {proofTotal}
               </p>
             </div>
           </div>

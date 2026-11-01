@@ -339,8 +339,8 @@ export default function Race({ warrantId, onWarrantId, onGoto }) {
                         <span className="out">{a.outcome}</span>
                         {isBounce && (
                           <span className="reject-stamp">
-                            Rejected by Appwrite{code ? ` · ${code}` : ''}
-                            {a.error ? ` · ${a.error}` : ''}
+                            Rejected by Appwrite
+                            {a.error ? ` · ${a.error}` : code ? ` · ${code}` : ''}
                           </span>
                         )}
                       </button>
