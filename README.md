@@ -28,6 +28,11 @@ rejected by Appwrite on its next write (`401 user_unauthorized`).
 On three consecutive scripted races (2026-10-31): warrant **1 committed / 7
 rejected** after mid-run revoke; credential **8 committed / 0 rejected**.
 
+The race UI shows two measured timings separately: **click → permission removed**
+(Function round-trip; a cold start can add tens of seconds) and **permission
+removed → first rejected write** (TablesDB rejecting the next agent decrement).
+The dashboard warms `warrant-control` once on load so revoke is usually warm.
+
 ## Verify the claims yourself
 
 ```bash

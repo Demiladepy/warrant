@@ -79,6 +79,7 @@ async function revoke(tables, warrantId) {
   const before = await tables.getRow({ databaseId: DB_ID, tableId: TABLES.warrants, rowId: warrantId });
   const after = revokedPermissions({ grantorId: GRANTOR_USER_ID });
   const removed = before.$permissions.filter((p) => !after.includes(p));
+  // ISO timestamp when permissions are rewritten — UI splits click→here vs here→reject.
   const revokedAt = new Date().toISOString();
   await tables.updateRow({
     databaseId: DB_ID,
@@ -398,10 +399,20 @@ async function jar(tables, users) {
 
 function parseBody(req) {
   if (req.bodyJson && typeof req.bodyJson === 'object') return req.bodyJson;
-  if (typeof req.bodyText === 'string' && req.bodyText.trim()) {
-    return JSON.parse(req.bodyText);
-  }
-  if (typeof req.body === 'string' && req.body.trim()) return JSON.parse(req.body);
+  const tryParse = (raw) => {
+    if (typeof raw !== 'string' || !raw.trim()) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      const err = new Error('invalid JSON body');
+      err.code = 400;
+      throw err;
+    }
+  };
+  const fromText = tryParse(req.bodyText);
+  if (fromText) return fromText;
+  const fromBody = tryParse(req.body);
+  if (fromBody) return fromBody;
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) return req.body;
   return {};
 }
